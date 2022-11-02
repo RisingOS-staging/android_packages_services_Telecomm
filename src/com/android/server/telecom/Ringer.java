@@ -26,7 +26,6 @@ import android.annotation.Nullable;
 import android.app.Notification;
 import android.app.NotificationManager;
 import android.app.Person;
-import android.database.ContentObserver;
 import android.content.Context;
 import android.content.res.Resources;
 import android.content.pm.PackageManager;
@@ -212,9 +211,6 @@ public class Ringer {
     };
 
     private boolean mUseSimplePattern;
-    private int mVibrationPattern;
-    private SettingsObserver mSettingObserver;
-    private final Handler mH = new Handler();
 
     /**
      * Indicates that vibration should be repeated at element 5 in the {@link #PULSE_AMPLITUDE} and
@@ -313,19 +309,7 @@ public class Ringer {
         mNotificationManager = notificationManager;
         mAccessibilityManagerAdapter = accessibilityManagerAdapter;
         mUseSimplePattern = mContext.getResources().getBoolean(R.bool.use_simple_vibration_pattern);
-        mVibrationPattern = Settings.System.getIntForUser(mContext.getContentResolver(),
-            Settings.System.RINGTONE_VIBRATION_PATTERN, 0, UserHandle.USER_CURRENT);
         torchToggler = new TorchToggler(context);
-
-        updateVibrationPattern();
-
-        mSettingObserver = new SettingsObserver(mH);
-        mContext.getContentResolver().registerContentObserver(
-            Settings.System.getUriFor(Settings.System.RINGTONE_VIBRATION_PATTERN),
-            true, mSettingObserver, UserHandle.USER_CURRENT);
-        mContext.getContentResolver().registerContentObserver(
-            Settings.System.getUriFor(Settings.System.CUSTOM_RINGTONE_VIBRATION_PATTERN),
-            true, mSettingObserver, UserHandle.USER_CURRENT);
 
         mIsHapticPlaybackSupportedByDevice =
                 mSystemSettingsUtil.isHapticPlaybackSupported(mContext);
@@ -556,6 +540,7 @@ public class Ringer {
                         return;
                     }
                     final VibrationEffect vibrationEffect;
+                    updateVibrationPattern();
                     if (ringtone != null && finalUseCustomVibrationEffect) {
                         if (DEBUG_RINGER) {
                             Log.d(this, "Using ringtone defined vibration effect.");
@@ -961,10 +946,10 @@ public class Ringer {
     
 
     private void updateVibrationPattern() {
-        mVibrationPattern = Settings.System.getIntForUser(mContext.getContentResolver(),
-            Settings.System.RINGTONE_VIBRATION_PATTERN, 0, UserHandle.USER_CURRENT);
+        final int pattern = Settings.System.getIntForUser(mContext.getContentResolver(),
+                Settings.System.RINGTONE_VIBRATION_PATTERN, 0, UserHandle.USER_CURRENT);
         if (mUseSimplePattern) {
-            switch (mVibrationPattern) {
+            switch (pattern) {
                 case 1:
                     mDefaultVibrationEffect = mVibrationEffectProxy.createWaveform(DZZZ_DA_VIBRATION_PATTERN,
                         FIVE_ELEMENTS_VIBRATION_AMPLITUDE, REPEAT_SIMPLE_VIBRATION_AT);
@@ -1015,17 +1000,6 @@ public class Ringer {
         } else {
             mDefaultVibrationEffect = mVibrationEffectProxy.createWaveform(PULSE_PATTERN,
                     PULSE_AMPLITUDE, REPEAT_VIBRATION_AT);
-        }
-    }
-
-    private final class SettingsObserver extends ContentObserver {
-        public SettingsObserver(Handler handler) {
-            super(handler);
-        }
-
-        @Override
-        public void onChange(boolean SelfChange) {
-            updateVibrationPattern();
         }
     }
 
